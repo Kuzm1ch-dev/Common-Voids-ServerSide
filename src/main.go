@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	proto "server/src/proto"
 )
 
 func process(conn net.Conn) {
@@ -26,6 +27,7 @@ func process(conn net.Conn) {
 func main() {
 
 	listen, err := net.Listen("tcp", "127.0.0.1:30000")
+	fmt.Println("Server started...")
 	if err != nil {
 		fmt.Println("listen failed, err:", err)
 		return
