@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"io"
 	"log"
@@ -11,11 +12,24 @@ import (
 	"server/src/proto"
 )
 
-func process(clients map[int]client, conn net.Conn) {
+func process(clients map[int]client, conn net.Conn, id int) {
+
+	welcomeData, err := proto.Encode(pWelcome, clients[id].uuid.String())
+	fmt.Println(clients[id].uuid.String())
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	_, e := conn.Write(welcomeData)
+	if e != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
 	defer conn.Close()
 	for {
 		reader := bufio.NewReader(conn)
-		msg, err := proto.Decode(reader)
+		msg, pID, err := proto.Decode(reader)
 		if err == io.EOF {
 			return
 		}
@@ -23,8 +37,8 @@ func process(clients map[int]client, conn net.Conn) {
 			fmt.Println("decode msg failed, err:", err)
 			return
 		}
-		fmt.Println("Полученные данные от клиента:", msg)
-		data, err := proto.Encode(msg)
+		fmt.Println("Полученные данные от клиента:", msg, pID)
+		data, err := proto.Encode(pMessage, msg)
 		m := controller.Message{msg, len(msg)}
 		go controller.Save(&m)
 		for _, v := range clients {
@@ -41,8 +55,16 @@ func process(clients map[int]client, conn net.Conn) {
 }
 
 type client struct {
+	uuid uuid.UUID
 	conn net.Conn
 }
+
+const (
+	pWelcome   int32 = 101
+	pNewPlayer       = 102
+	pMessage         = 103
+	pMove            = 104
+)
 
 func main() {
 
@@ -66,8 +88,9 @@ func main() {
 			fmt.Println("accept failed, err:", err)
 			continue
 		}
-		clients[i] = client{conn}
-		go process(clients, conn)
+		clients[i] = client{uuid.New(), conn}
+		fmt.Println("New Connection: " + conn.LocalAddr().String())
+		go process(clients, conn, i)
 		i++
 	}
 }
