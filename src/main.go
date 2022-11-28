@@ -3,12 +3,15 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"github.com/joho/godotenv"
 	"io"
+	"log"
 	"net"
+	"server/src/controller"
 	"server/src/proto"
 )
 
-func process(conns map[int]net.Conn, conn net.Conn) {
+func process(clients map[int]client, conn net.Conn) {
 	defer conn.Close()
 	for {
 		reader := bufio.NewReader(conn)
@@ -22,10 +25,12 @@ func process(conns map[int]net.Conn, conn net.Conn) {
 		}
 		fmt.Println("Полученные данные от клиента:", msg)
 		data, err := proto.Encode(msg)
-		for _, v := range conns {
-			if v != conn && conn != nil {
+		m := controller.Message{msg, len(msg)}
+		go controller.Save(&m)
+		for _, v := range clients {
+			if v.conn != conn && v.conn != nil {
 				fmt.Println(1)
-				_, err := v.Write(data)
+				_, err := v.conn.Write(data)
 
 				if err != nil {
 					fmt.Println("Error:", err.Error())
@@ -35,10 +40,18 @@ func process(conns map[int]net.Conn, conn net.Conn) {
 	}
 }
 
+type client struct {
+	conn net.Conn
+}
+
 func main() {
 
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found")
+	}
+
 	listen, err := net.Listen("tcp", "127.0.0.1:30000")
-	conns := make(map[int]net.Conn, 1024)
+	clients := make(map[int]client, 1024)
 	i := 0
 
 	fmt.Println("Server started...")
@@ -53,8 +66,8 @@ func main() {
 			fmt.Println("accept failed, err:", err)
 			continue
 		}
-		conns[i] = conn
-		go process(conns, conn)
+		clients[i] = client{conn}
+		go process(clients, conn)
 		i++
 	}
 }
