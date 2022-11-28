@@ -15,6 +15,8 @@ import (
 func process(clients map[int]client, conn net.Conn, id int) {
 
 	welcomeData, err := proto.Encode(pWelcome, clients[id].uuid.String())
+	newPlayer(clients, id)
+
 	fmt.Println(clients[id].uuid.String())
 	if err != nil {
 		fmt.Println("Error:", err)
@@ -49,6 +51,30 @@ func process(clients map[int]client, conn net.Conn, id int) {
 				if err != nil {
 					fmt.Println("Error:", err.Error())
 				}
+			}
+		}
+	}
+}
+
+func newPlayer(clients map[int]client, id int) {
+	for _, v := range clients {
+		if v != clients[id] {
+			data, err := proto.Encode(pNewPlayer, clients[id].uuid.String())
+			if err != nil {
+				fmt.Println("Error:", err.Error())
+			}
+
+			//Говорим всем, кто на сервере, что мы зашли
+			_, err = v.conn.Write(data)
+			if err != nil {
+				fmt.Println("Error:", err.Error())
+			}
+
+			//Подгружаем всех игроков, которые уже на сервере
+			aboutPlayer, err := proto.Encode(pNewPlayer, v.uuid.String())
+			_, err = clients[id].conn.Write(aboutPlayer)
+			if err != nil {
+				fmt.Println("Error:", err.Error())
 			}
 		}
 	}
