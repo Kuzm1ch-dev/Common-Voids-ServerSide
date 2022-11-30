@@ -8,16 +8,24 @@ import (
 	"io"
 	"log"
 	"net"
-	"server/src/controller"
+	"server/src/common"
 	"server/src/proto"
 )
 
-func process(clients map[int]client, conn net.Conn, id int) {
+const (
+	UUIDPackage int32 = 101
+	pNewPlayer        = 102
+	pMessage          = 103
+	pBroadcast        = 104
+)
 
-	welcomeData, err := proto.Encode(pWelcome, clients[id].uuid.String())
+func process(clients map[int]common.Client, conn net.Conn, id int) {
+
+	//Отправляем UUID игроку
+	welcomeData, err := proto.Encode(common.Package{101, ""})
 	newPlayer(clients, id)
+	fmt.Println("Игроку присввое uuid: " + clients[id].Uuid.String())
 
-	fmt.Println(clients[id].uuid.String())
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
@@ -31,7 +39,7 @@ func process(clients map[int]client, conn net.Conn, id int) {
 	defer conn.Close()
 	for {
 		reader := bufio.NewReader(conn)
-		msg, pID, err := proto.Decode(reader)
+		pack, err := proto.Decode(reader)
 		if err == io.EOF {
 			return
 		}
@@ -39,58 +47,48 @@ func process(clients map[int]client, conn net.Conn, id int) {
 			fmt.Println("decode msg failed, err:", err)
 			return
 		}
-		fmt.Println("Полученные данные от клиента:", msg, pID)
-		data, err := proto.Encode(pMessage, msg)
-		m := controller.Message{msg, len(msg)}
-		go controller.Save(&m)
-		for _, v := range clients {
-			if v.conn != conn && v.conn != nil {
-				fmt.Println(1)
-				_, err := v.conn.Write(data)
+		fmt.Println("Полученные данные от клиента:", string(pack.Marshal()))
+		data, err := proto.Encode(pack)
+		//m := controller.Message{pack, len(msg)}
+		//go controller.Save(&m)
 
-				if err != nil {
-					fmt.Println("Error:", err.Error())
+		if pack.Code == pBroadcast {
+			for _, v := range clients {
+				if v.Conn != conn && v.Conn != nil {
+					fmt.Println(1)
+					_, err := v.Conn.Write(data)
+					if err != nil {
+						fmt.Println("Error:", err.Error())
+					}
 				}
 			}
 		}
 	}
 }
 
-func newPlayer(clients map[int]client, id int) {
+func newPlayer(clients map[int]common.Client, id int) {
 	for _, v := range clients {
 		if v != clients[id] {
-			data, err := proto.Encode(pNewPlayer, clients[id].uuid.String())
+			data, err := proto.Encode(common.Package{pNewPlayer, clients[id].Uuid.String()})
 			if err != nil {
 				fmt.Println("Error:", err.Error())
 			}
 
 			//Говорим всем, кто на сервере, что мы зашли
-			_, err = v.conn.Write(data)
+			_, err = v.Conn.Write(data)
 			if err != nil {
 				fmt.Println("Error:", err.Error())
 			}
 
 			//Подгружаем всех игроков, которые уже на сервере
-			aboutPlayer, err := proto.Encode(pNewPlayer, v.uuid.String())
-			_, err = clients[id].conn.Write(aboutPlayer)
+			aboutPlayer, err := proto.Encode(common.Package{pNewPlayer, v.Uuid.String()})
+			_, err = clients[id].Conn.Write(aboutPlayer)
 			if err != nil {
 				fmt.Println("Error:", err.Error())
 			}
 		}
 	}
 }
-
-type client struct {
-	uuid uuid.UUID
-	conn net.Conn
-}
-
-const (
-	pWelcome   int32 = 101
-	pNewPlayer       = 102
-	pMessage         = 103
-	pMove            = 104
-)
 
 func main() {
 
@@ -99,7 +97,7 @@ func main() {
 	}
 
 	listen, err := net.Listen("tcp", "127.0.0.1:30000")
-	clients := make(map[int]client, 1024)
+	clients := make(map[int]common.Client, 1024)
 	i := 0
 
 	fmt.Println("Server started...")
@@ -114,7 +112,7 @@ func main() {
 			fmt.Println("accept failed, err:", err)
 			continue
 		}
-		clients[i] = client{uuid.New(), conn}
+		clients[i] = common.Client{uuid.New(), conn}
 		fmt.Println("New Connection: " + conn.LocalAddr().String())
 		go process(clients, conn, i)
 		i++

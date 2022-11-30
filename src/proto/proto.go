@@ -4,11 +4,13 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"server/src/common"
 )
 
 // Encode кодирует сообщение
-func Encode(packageType int32, message string) ([]byte, error) {
+func Encode(pack common.Package) ([]byte, error) {
 	// Считываем длину сообщения и преобразуем его в тип int32 (занимает 4 байта)
+	var message = pack.Marshal()
 	var length = int32(len(message))
 	var pkg = new(bytes.Buffer)
 	// пишем заголовок сообщения
@@ -16,14 +18,8 @@ func Encode(packageType int32, message string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	// пишем тип пакета
-	err = binary.Write(pkg, binary.LittleEndian, packageType)
-	if err != nil {
-		return nil, err
-	}
 	// записываем объект сообщения
-	err = binary.Write(pkg, binary.LittleEndian, []byte(message))
+	err = binary.Write(pkg, binary.LittleEndian, message)
 	if err != nil {
 		return nil, err
 	}
@@ -31,36 +27,26 @@ func Encode(packageType int32, message string) ([]byte, error) {
 }
 
 // Decode декодирует сообщение
-func Decode(reader *bufio.Reader) (string, int32, error) {
+func Decode(reader *bufio.Reader) (common.Package, error) {
 	// читаем длину сообщения
 	lengthByte, _ := reader.Peek(4) // Считываем первые 4 байта данных
 	lengthBuff := bytes.NewBuffer(lengthByte)
-
-	packageByte, _ := reader.Peek(4)
-	packageBuff := bytes.NewBuffer(packageByte)
-
 	var length int32
-	var packageType int32
-
-	err := binary.Read(packageBuff, binary.LittleEndian, &packageType)
+	err := binary.Read(lengthBuff, binary.LittleEndian, &length)
 	if err != nil {
-		return "", -1, err
+		return common.Package{}, err
 	}
 
-	err = binary.Read(lengthBuff, binary.LittleEndian, &length)
-	if err != nil {
-		return "", -1, err
-	}
 	// Buffered возвращает количество байтов, которые можно прочитать в буфере.
-	if int32(reader.Buffered()) < length+8 {
-		return "", -1, err
+	if int32(reader.Buffered()) < length+4 {
+		return common.Package{}, err
 	}
 
 	// читаем реальные данные сообщения
-	pack := make([]byte, int(8+length))
+	pack := make([]byte, int(4+length))
 	_, err = reader.Read(pack)
 	if err != nil {
-		return "", -1, err
+		return common.Package{}, err
 	}
-	return string(pack[8:]), packageType, nil
+	return common.UnMarshal(pack[4:]), nil
 }
