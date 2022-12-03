@@ -8,6 +8,7 @@ import (
 type Package struct {
 	Code int32
 	Data string
+	UUID string
 }
 
 func (p Package) Marshal() []byte {
@@ -20,7 +21,7 @@ func (p Package) Marshal() []byte {
 
 func UnMarshal(packageByte []byte) Package {
 	var packageStruct Package
-	err := json.Unmarshal(packageByte, packageStruct)
+	err := json.Unmarshal(packageByte, &packageStruct)
 	if err != nil {
 		fmt.Println("Error:" + err.Error())
 	}

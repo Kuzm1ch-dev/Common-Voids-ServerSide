@@ -48,5 +48,6 @@ func Decode(reader *bufio.Reader) (common.Package, error) {
 	if err != nil {
 		return common.Package{}, err
 	}
+
 	return common.UnMarshal(pack[4:]), nil
 }
