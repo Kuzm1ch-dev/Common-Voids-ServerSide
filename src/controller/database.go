@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
@@ -25,7 +24,7 @@ func Save(m *Message) {
 		log.Fatal(err)
 	}
 
-	fmt.Println("Mongo connect!")
+	log.Println("Mongo connect!")
 
 	collection = client.Database(userDB).Collection("messageHistory")
 	insertResult, err := collection.InsertOne(context.TODO(), m)
@@ -34,7 +33,7 @@ func Save(m *Message) {
 		log.Fatal(err)
 	}
 
-	fmt.Println("Inserted a single document: ", insertResult.InsertedID)
+	log.Println("Inserted a single document: ", insertResult.InsertedID)
 
-	fmt.Println("Collection OK!")
+	log.Println("Collection OK!")
 }

@@ -2,7 +2,7 @@ package common
 
 import (
 	"encoding/json"
-	"fmt"
+	"log"
 )
 
 type Package struct {
@@ -14,7 +14,7 @@ type Package struct {
 func (p Package) Marshal() []byte {
 	json_data, err := json.Marshal(p)
 	if err != nil {
-		fmt.Println("Error:" + err.Error())
+		log.Println("Error:" + err.Error())
 	}
 	return json_data
 }
@@ -23,7 +23,7 @@ func UnMarshal(packageByte []byte) Package {
 	var packageStruct Package
 	err := json.Unmarshal(packageByte, &packageStruct)
 	if err != nil {
-		fmt.Println("Error:" + err.Error())
+		log.Println("Error:" + err.Error())
 	}
 	return packageStruct
 }

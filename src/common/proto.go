@@ -1,14 +1,13 @@
-package proto
+package common
 
 import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
-	"server/src/common"
 )
 
 // Encode кодирует сообщение
-func Encode(pack common.Package) ([]byte, error) {
+func Encode(pack Package) ([]byte, error) {
 	// Считываем длину сообщения и преобразуем его в тип int32 (занимает 4 байта)
 	var message = pack.Marshal()
 	var length = int32(len(message))
@@ -27,27 +26,27 @@ func Encode(pack common.Package) ([]byte, error) {
 }
 
 // Decode декодирует сообщение
-func Decode(reader *bufio.Reader) (common.Package, error) {
+func Decode(reader *bufio.Reader) (Package, error) {
 	// читаем длину сообщения
 	lengthByte, _ := reader.Peek(4) // Считываем первые 4 байта данных
 	lengthBuff := bytes.NewBuffer(lengthByte)
 	var length int32
 	err := binary.Read(lengthBuff, binary.LittleEndian, &length)
 	if err != nil {
-		return common.Package{}, err
+		return Package{}, err
 	}
 
 	// Buffered возвращает количество байтов, которые можно прочитать в буфере.
 	if int32(reader.Buffered()) < length+4 {
-		return common.Package{}, err
+		return Package{}, err
 	}
 
 	// читаем реальные данные сообщения
 	pack := make([]byte, int(4+length))
 	_, err = reader.Read(pack)
 	if err != nil {
-		return common.Package{}, err
+		return Package{}, err
 	}
 
-	return common.UnMarshal(pack[4:]), nil
+	return UnMarshal(pack[4:]), nil
 }
