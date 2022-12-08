@@ -2,7 +2,23 @@ package game
 
 type Entity struct {
 	Name  string
-	Stats Stats
+	Stats EntityStat
+}
+
+func (e *Entity) SubHealth(value float32) {
+	e.Stats.CurrentHealth -= value
+}
+
+func (e *Entity) AddHealth(value float32) {
+	e.Stats.CurrentHealth += value
+}
+
+func (e *Entity) SubMana(value float32) {
+	e.Stats.CurrentMana -= value
+}
+
+func (e *Entity) AddMana(value float32) {
+	e.Stats.CurrentMana += value
 }
 
 func (e *Entity) GetDamage(damage Damage) {
