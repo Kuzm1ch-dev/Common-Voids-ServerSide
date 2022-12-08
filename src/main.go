@@ -7,10 +7,11 @@ import (
 )
 
 const (
-	UUIDPackage int32 = 101
-	pNewPlayer        = 102
-	pMessage          = 103
-	pBroadcast        = 104
+	UUIDPackage      int32 = 101
+	pNewPlayer             = 102
+	pMessage               = 103
+	pBroadcast             = 104
+	pUpdateEquuiment       = 105
 )
 
 func main() {

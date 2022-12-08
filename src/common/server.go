@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"server/src/game"
 )
 
 const (
@@ -42,7 +43,7 @@ func (s *Server) ListenAndServe() error {
 			log.Fatal("accept failed, err:", err)
 			continue
 		}
-		s.Clients[s.CurrentID] = Client{uuid.New(), conn}
+		s.Clients[s.CurrentID] = Client{uuid.New(), conn, game.Player{}}
 		log.Println("New Connection: " + conn.LocalAddr().String())
 		go s.ConnectionHandler(s.CurrentID)
 		s.CurrentID++
