@@ -23,14 +23,14 @@ const (
 type Game struct {
 	world           *box2d.B2World
 	collisionSystem *physic.CollisionSystem
-	characters      map[string]*box2d.B2Body
+	characters      map[string]*Player
 }
 
 func NewGameController(world *box2d.B2World, system *physic.CollisionSystem) Game {
 	g := Game{}
 	g.world = world
 	g.collisionSystem = system
-	g.characters = make(map[string]*box2d.B2Body)
+	g.characters = make(map[string]*Player)
 	return g
 }
 
@@ -70,16 +70,16 @@ func (g *Game) Update() error {
 	g.collisionSystem.Update(float32(timeStep))
 	// Now print the position and angle of the body.
 	for name, character := range g.characters {
-		position := character.GetPosition()
-		angle := character.GetAngle()
+		position := character.Collider.GetPosition()
+		angle := character.Collider.GetAngle()
 		msg := fmt.Sprintf("(%s): %4.3f %4.3f %4.3f\n", name, position.X, position.Y, angle)
 		fmt.Sprintf(msg)
 	}
 
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButton0) {
 		rand.Seed(time.Now().UnixNano())
-		id := rand.Intn(100)
-		g.AddCircle("circle_"+string(id), 3, 3, 1)
+		//id := rand.Intn(100)
+		//g.AddPlayerCollider("circle_"+string(id), 3, 3, 1)
 	}
 
 	return nil
@@ -98,8 +98,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	*/
 
 	for _, character := range g.characters {
-		position := character.GetPosition()
-		vector.StrokeCircle(screen, float32(position.X*scale), -float32(position.Y*scale), float32(character.M_fixtureList.M_shape.GetRadius()*scale), 1, color.RGBA{0xff, 0x80, 0xff, 0xff})
+		position := character.Collider.GetPosition()
+		vector.StrokeCircle(screen, float32(position.X*scale), -float32(position.Y*scale), float32(character.Collider.M_fixtureList.M_shape.GetRadius()*scale), 1, color.RGBA{0xff, 0x80, 0xff, 0xff})
 	}
 	/*
 		for _, e := range g.collisionSystem.Entities {
@@ -124,7 +124,7 @@ func (g *Game) Run() {
 	}
 }
 
-func (g *Game) AddCircle(name string, x float64, y float64, r float64) {
+func (g *Game) AddPlayerCollider(name string, x float64, y float64, r float64, player *Player) {
 	bd := box2d.MakeB2BodyDef()
 	bd.Position.Set(x, y)
 	bd.Type = box2d.B2BodyType.B2_dynamicBody
@@ -140,6 +140,8 @@ func (g *Game) AddCircle(name string, x float64, y float64, r float64) {
 	fd.Shape = &shape
 	fd.Density = 20.0
 	body.CreateFixtureFromDef(&fd)
-	g.characters[name] = body
-	g.collisionSystem.Add(&physic.Box2dComponent{body})
+	player.Collider = *body
+	g.characters[name] = player
+
+	g.collisionSystem.Add(&physic.Box2dComponent{&player.Collider})
 }

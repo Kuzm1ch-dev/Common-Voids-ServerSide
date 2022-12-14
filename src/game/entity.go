@@ -1,8 +1,11 @@
 package game
 
+import "github.com/ByteArena/box2d"
+
 type Entity struct {
-	Name  string
-	Stats EntityStat
+	Name     string
+	Collider box2d.B2Body
+	Stats    EntityStat
 }
 
 func (e *Entity) SubHealth(value float32) {
@@ -43,4 +46,12 @@ func (e *Entity) CheckHealth() {
 	if e.Stats.CurrentHealth >= e.Stats.MaxHealth {
 		e.Stats.CurrentHealth = e.Stats.MaxHealth
 	}
+}
+
+func (e *Entity) SetPosition(pos box2d.B2Vec2) {
+	e.Collider.SetTransform(pos, e.Collider.GetAngle())
+}
+
+func (e *Entity) SetAngle(angle float64) {
+	e.Collider.SetTransform(e.Collider.GetPosition(), angle)
 }
