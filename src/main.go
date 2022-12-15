@@ -21,11 +21,11 @@ func main() {
 	collisionSystem := physic.CollisionSystem{}
 	collisionSystem.NewListener(&world)
 
-	game := game.NewGameController(&world, &collisionSystem)
+	GameController := game.NewGameController(&world, &collisionSystem)
 
-	server := new(common.Server)
-	server.Init("127.0.0.1", 1024)
-	go server.ListenAndServe()
+	logicServer := new(common.LogicServer)
+	logicServer.Init("127.0.0.1", 1024)
+	go logicServer.ListenAndServe()
 
-	game.Run()
+	GameController.Run()
 }

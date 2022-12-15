@@ -12,23 +12,23 @@ import (
 const (
 	UUIDPackage int32 = 101
 	pNewPlayer        = 102
-	pMessage          = 103
+	pAuth             = 103
 	pBroadcast        = 104
 	pDisconnect       = 105
 )
 
-type Server struct {
+type LogicServer struct {
 	Addr      string
 	Clients   map[int]Client
 	CurrentID int
 }
 
-func (s *Server) Init(addr string, maxPlayers int) {
+func (s *LogicServer) Init(addr string, maxPlayers int) {
 	s.Addr = addr
 	s.Clients = make(map[int]Client, maxPlayers)
 }
 
-func (s *Server) ListenAndServe() error {
+func (s *LogicServer) ListenAndServe() error {
 	Listener, err := net.Listen("tcp", s.Addr+":30000")
 	if err != nil {
 		log.Println("Error:", err)
@@ -50,7 +50,7 @@ func (s *Server) ListenAndServe() error {
 	}
 }
 
-func (s Server) ConnectionHandler(id int) error {
+func (s LogicServer) ConnectionHandler(id int) error {
 
 	defer s.closeConnection(id)
 
@@ -96,14 +96,14 @@ func (s Server) ConnectionHandler(id int) error {
 	}
 }
 
-func (s Server) handleReceivedPacket(pack Package, id int) error {
+func (s LogicServer) handleReceivedPacket(pack Package, id int) error {
 	if pack.Code == pBroadcast {
 		s.broadCastWithout(pack, id)
 	}
 	return nil
 }
 
-func (s Server) broadCast(pack Package) error {
+func (s LogicServer) broadCast(pack Package) error {
 	data, err := Encode(pack)
 	if err != nil {
 		log.Fatal("Error:", err)
@@ -121,7 +121,7 @@ func (s Server) broadCast(pack Package) error {
 	return nil
 }
 
-func (s Server) broadCastWithout(pack Package, id int) error {
+func (s LogicServer) broadCastWithout(pack Package, id int) error {
 	data, err := Encode(pack)
 	if err != nil {
 		log.Println("Error:", err)
@@ -139,7 +139,7 @@ func (s Server) broadCastWithout(pack Package, id int) error {
 	return nil
 }
 
-func (s Server) closeConnection(id int) {
+func (s LogicServer) closeConnection(id int) {
 	err := s.Clients[id].Conn.Close()
 	if err != nil {
 		log.Fatal("Error:", err)
@@ -149,7 +149,7 @@ func (s Server) closeConnection(id int) {
 	delete(s.Clients, id)
 }
 
-func (s Server) NewPlayer(id int) error {
+func (s LogicServer) NewPlayer(id int) error {
 	for _, v := range s.Clients {
 		if v != s.Clients[id] {
 			data, err := Encode(Package{pNewPlayer, "", s.Clients[id].Uuid.String()})
