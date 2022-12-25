@@ -12,7 +12,6 @@ import (
 const (
 	UUIDPackage int32 = 101
 	pNewPlayer        = 102
-	pAuth             = 103
 	pBroadcast        = 104
 	pDisconnect       = 105
 )
@@ -35,7 +34,7 @@ func (s *LogicServer) ListenAndServe() error {
 		return err
 	}
 
-	log.Println("Server started %s", s.Addr)
+	log.Println("Logic server started ", s.Addr)
 
 	for {
 		conn, err := Listener.Accept()

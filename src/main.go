@@ -23,6 +23,10 @@ func main() {
 
 	GameController := game.NewGameController(&world, &collisionSystem)
 
+	authServer := new(common.AuthServer)
+	authServer.Init("127.0.0.1")
+	go authServer.ListenAndServe()
+
 	logicServer := new(common.LogicServer)
 	logicServer.Init("127.0.0.1", 1024)
 	go logicServer.ListenAndServe()

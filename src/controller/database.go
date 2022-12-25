@@ -1,39 +1,40 @@
 package controller
 
 import (
-	"context"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"database/sql"
 	"log"
 )
 
-type Message struct {
-	Text   string
-	Length int
+type DataBaseController struct {
+	DB *sql.DB
 }
 
-const connectionString = "mongodb://localhost:27017"
-const userDB = "users"
+func DataBaseConnect(connStr string) *DataBaseController {
+	DBController := new(DataBaseController)
+	DBController.DB, _ = sql.Open("postgres", connStr)
+	return DBController
+}
 
-var collection *mongo.Collection
-
-func Save(m *Message) {
-	clientOption := options.Client().ApplyURI(connectionString)
-	client, err := mongo.Connect(context.TODO(), clientOption)
-	if err != nil {
-		log.Fatal(err)
+func (DBController *DataBaseController) CheckUser(email string, password string) {
+	result := DBController.DB.QueryRow("SELECT id FROM users WHERE email=$1 AND encrypted_password=$2",
+		email, password)
+	var id int
+	err := result.Scan(&id)
+	if err == sql.ErrNoRows {
+		ShowError(err)
+	} else if err != nil {
+		ShowError(err)
+	} else {
+		log.Println("User Found: id-", string(id))
 	}
+}
 
-	log.Println("Mongo connect!")
-
-	collection = client.Database(userDB).Collection("messageHistory")
-	insertResult, err := collection.InsertOne(context.TODO(), m)
-
+func (DBController *DataBaseController) CreateUser(email string, password string) {
+	result, err := DBController.DB.Exec("insert into users (email, encrypted_password) values ($1, $2)",
+		email, password)
 	if err != nil {
-		log.Fatal(err)
+		ShowError(err)
+		return
 	}
-
-	log.Println("Inserted a single document: ", insertResult.InsertedID)
-
-	log.Println("Collection OK!")
+	log.Println(result.RowsAffected())
 }

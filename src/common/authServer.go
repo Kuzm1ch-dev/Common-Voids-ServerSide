@@ -2,22 +2,33 @@ package common
 
 import (
 	"bufio"
-	"github.com/google/uuid"
 	"io"
 	"log"
 	"net"
-	"server/src/game"
+	"server/src/controller"
+	"strings"
+)
+
+const (
+	pAuth             int32 = 201
+	pSuccessfulAuth         = 202
+	pFailedAuth             = 203
+	pSignIn                 = 204
+	pSignInFail             = 205
+	pSignInSuccessful       = 206
 )
 
 type AuthServer struct {
-	Addr      string
-	Clients   map[int]Client
-	CurrentID int
+	Addr               string
+	Clients            map[int]net.Conn
+	CurrentID          int
+	DataBaseController *controller.DataBaseController
 }
 
 func (s *AuthServer) Init(addr string) {
 	s.Addr = addr
-	s.Clients = make(map[int]Client)
+	s.Clients = make(map[int]net.Conn)
+	s.DataBaseController = controller.DataBaseConnect("user=postgres password=root dbname=accounts sslmode=disable")
 }
 
 func (s *AuthServer) ListenAndServe() error {
@@ -27,7 +38,7 @@ func (s *AuthServer) ListenAndServe() error {
 		return err
 	}
 
-	log.Println("Server started %s", s.Addr)
+	log.Println("Auth server started ", s.Addr)
 
 	for {
 		conn, err := Listener.Accept()
@@ -35,7 +46,7 @@ func (s *AuthServer) ListenAndServe() error {
 			log.Fatal("accept failed, err:", err)
 			continue
 		}
-		s.Clients[s.CurrentID] = Client{uuid.New(), conn, game.Player{}}
+		s.Clients[s.CurrentID] = conn
 		log.Println("New Connection: " + conn.LocalAddr().String())
 		go s.ConnectionHandler(s.CurrentID)
 		s.CurrentID++
@@ -46,24 +57,10 @@ func (s AuthServer) ConnectionHandler(id int) error {
 
 	defer s.closeConnection(id)
 
-	//Отправляем UUID игроку
-	welcomeData, err := Encode(Package{UUIDPackage, "", s.Clients[id].Uuid.String()})
-	log.Println("welcome: ", string(welcomeData))
-	log.Println("Игроку присвоен uuid: " + s.Clients[id].Uuid.String())
-
-	if err != nil {
-		log.Fatal("Error:", err)
-		return err
-	}
-
-	_, err = s.Clients[id].Conn.Write(welcomeData)
-	if err != nil {
-		log.Fatal("Error:", err)
-		return err
-	}
+	//welcomeData = Encode(Package{UUIDPackage, "", s.Clients[id].Uuid.String()})
 
 	for {
-		reader := bufio.NewReader(s.Clients[id].Conn)
+		reader := bufio.NewReader(s.Clients[id])
 		pack, err := Decode(reader)
 		if err == io.EOF {
 			log.Fatal("Error:", err)
@@ -74,7 +71,7 @@ func (s AuthServer) ConnectionHandler(id int) error {
 			return err
 		}
 
-		err = s.handleReceivedPacket(pack, id)
+		err = s.handleReceivedAuthPacket(pack)
 		if err != nil {
 			log.Fatal("Error:", err)
 			return err
@@ -82,13 +79,22 @@ func (s AuthServer) ConnectionHandler(id int) error {
 	}
 }
 
-func (s AuthServer) handleReceivedPacket(pack Package, id int) error {
-
+func (s AuthServer) handleReceivedAuthPacket(pack Package) error {
+	switch pack.Code {
+	case pAuth:
+		email := strings.Split(pack.Data, ":")[0]
+		password := strings.Split(pack.Data, ":")[1]
+		s.DataBaseController.CheckUser(email, password)
+	case pSignIn:
+		email := strings.Split(pack.Data, ":")[0]
+		password := strings.Split(pack.Data, ":")[1]
+		s.DataBaseController.CreateUser(email, password)
+	}
 	return nil
 }
 
 func (s AuthServer) closeConnection(id int) {
-	err := s.Clients[id].Conn.Close()
+	err := s.Clients[id].Close()
 	if err != nil {
 		log.Fatal("Error:", err)
 	}
