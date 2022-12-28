@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"os"
 	"server/src/controller"
 	"strings"
 )
@@ -28,7 +29,7 @@ type AuthServer struct {
 func (s *AuthServer) Init(addr string) {
 	s.Addr = addr
 	s.Clients = make(map[int]net.Conn)
-	s.DataBaseController = controller.DataBaseConnect("user=postgres password=root dbname=accounts sslmode=disable")
+	s.DataBaseController = controller.DataBaseConnect(os.Getenv("DATABASE_STRING"))
 }
 
 func (s *AuthServer) ListenAndServe() error {
