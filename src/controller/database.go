@@ -2,6 +2,7 @@ package controller
 
 import (
 	"database/sql"
+	"github.com/google/uuid"
 	"log"
 )
 
@@ -15,7 +16,7 @@ func DataBaseConnect(connStr string) *DataBaseController {
 	return DBController
 }
 
-func (DBController *DataBaseController) CheckUser(email string, password string) {
+func (DBController *DataBaseController) CheckUser(email string, password string) string {
 	result := DBController.DB.QueryRow("SELECT id FROM users WHERE email=$1 AND encrypted_password=$2",
 		email, password)
 	var id int
@@ -27,6 +28,7 @@ func (DBController *DataBaseController) CheckUser(email string, password string)
 	} else {
 		log.Println("User Found: id-", string(id))
 	}
+	return DBController.GenerateUUID()
 }
 
 func (DBController *DataBaseController) CreateUser(email string, password string) {
@@ -35,6 +37,17 @@ func (DBController *DataBaseController) CreateUser(email string, password string
 	if err != nil {
 		ShowError(err)
 		return
+	}
+	log.Println(result.RowsAffected())
+}
+
+func (DBController *DataBaseController) GenerateUUID() string {
+	acces_token := uuid.New()
+	result, err := DBController.DB.Exec("insert into Access_tokens (token) values ($1)",
+		acces_token)
+	if err != nil {
+		ShowError(err)
+		return ""
 	}
 	log.Println(result.RowsAffected())
 }

@@ -13,7 +13,6 @@ func main() {
 
 	if err := godotenv.Load(); err != nil {
 		log.Println("No .env file found")
-		log.Println("No .env file found")
 	}
 
 	gravity := box2d.MakeB2Vec2(0.0, -10.0)
