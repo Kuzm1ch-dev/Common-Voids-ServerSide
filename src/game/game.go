@@ -120,7 +120,7 @@ func (g *Game) Run() {
 	ebiten.SetWindowSize(screenWidth, screenHeight)
 	ebiten.SetWindowTitle("Server Physic Window")
 	if err := ebiten.RunGame(g); err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 }
 
