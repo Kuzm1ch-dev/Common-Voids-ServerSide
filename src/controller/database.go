@@ -21,24 +21,39 @@ func (DBController *DataBaseController) CheckUser(email string, password string)
 		email, password)
 	var id int
 	err := result.Scan(&id)
-	if err == sql.ErrNoRows {
+	if err != nil {
 		ShowError(err)
-	} else if err != nil {
-		ShowError(err)
+		log.Println(err)
+		return ""
 	} else {
-		log.Println("User Found: id-", string(id))
+		log.Println("User Found")
 	}
 	return DBController.GenerateUUID()
 }
 
-func (DBController *DataBaseController) CreateUser(email string, password string) {
+func (DBController *DataBaseController) CheckAccessToken(token string) bool {
+	result := DBController.DB.QueryRow("SELECT id FROM access_tokens WHERE token=$1",
+		token)
+	var id int
+	err := result.Scan(&id)
+	if err != nil {
+		ShowError(err)
+		return false
+	} else {
+		log.Println("Token Found")
+	}
+	return true
+}
+
+func (DBController *DataBaseController) CreateUser(email string, password string) bool {
 	result, err := DBController.DB.Exec("insert into users (email, encrypted_password) values ($1, $2)",
 		email, password)
 	if err != nil {
 		ShowError(err)
-		return
+		return false
 	}
 	log.Println(result.RowsAffected())
+	return true
 }
 
 func (DBController *DataBaseController) GenerateUUID() string {
@@ -49,5 +64,7 @@ func (DBController *DataBaseController) GenerateUUID() string {
 		ShowError(err)
 		return ""
 	}
-	log.Println(result.RowsAffected())
+	result.RowsAffected()
+	log.Println("Access Token Created")
+	return acces_token.String()
 }

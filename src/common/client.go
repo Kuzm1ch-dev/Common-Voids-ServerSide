@@ -1,13 +1,16 @@
 package common
 
 import (
-	"github.com/google/uuid"
 	"net"
 	"server/src/game"
 )
 
 type Client struct {
-	Uuid   uuid.UUID
+	Uuid   string
 	Conn   net.Conn
 	Player game.Player
+}
+
+func (client *Client) SetUUID(uuid string) {
+	client.Uuid = uuid
 }
