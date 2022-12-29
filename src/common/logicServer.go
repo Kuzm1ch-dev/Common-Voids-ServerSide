@@ -2,12 +2,14 @@ package common
 
 import (
 	"bufio"
+	"github.com/ByteArena/box2d"
 	"io"
 	"log"
 	"net"
 	"os"
 	"server/src/controller"
 	"server/src/game"
+	"server/src/game/physic"
 )
 
 const (
@@ -23,12 +25,21 @@ type LogicServer struct {
 	Clients            map[int]*Client
 	CurrentID          int
 	DataBaseController *controller.DataBaseController
+	GameController     game.GameController
 }
 
 func (s *LogicServer) Init(addr string, maxPlayers int) {
 	s.Addr = addr
 	s.Clients = make(map[int]*Client, maxPlayers)
 	s.DataBaseController = controller.DataBaseConnect(os.Getenv("DATABASE_STRING"))
+
+	gravity := box2d.MakeB2Vec2(0.0, -10.0)
+	world := box2d.MakeB2World(gravity)
+	collisionSystem := physic.CollisionSystem{}
+	collisionSystem.NewListener(&world)
+
+	s.GameController = game.NewGameController(&world, &collisionSystem)
+
 }
 
 func (s *LogicServer) ListenAndServe() error {
@@ -187,6 +198,9 @@ func (s LogicServer) CloseConnection(id int) {
 }
 
 func (s LogicServer) NewPlayer(id int) error {
+
+	s.GameController.AddPlayerCollider(s.Clients[id].Uuid, 0, 0, 0.5)
+
 	for _, v := range s.Clients {
 		if v != s.Clients[id] {
 			data, err := Encode(Package{pNewPlayer, "", s.Clients[id].Uuid})

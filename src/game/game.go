@@ -20,14 +20,14 @@ const (
 	scale        = 4
 )
 
-type Game struct {
+type GameController struct {
 	world           *box2d.B2World
 	collisionSystem *physic.CollisionSystem
 	characters      map[string]*Player
 }
 
-func NewGameController(world *box2d.B2World, system *physic.CollisionSystem) Game {
-	g := Game{}
+func NewGameController(world *box2d.B2World, system *physic.CollisionSystem) GameController {
+	g := GameController{}
 	g.world = world
 	g.collisionSystem = system
 	g.characters = make(map[string]*Player)
@@ -60,7 +60,7 @@ func main() {
 
 }
 */
-func (g *Game) Update() error {
+func (g *GameController) Update() error {
 
 	timeStep := 1.0 / 60.0
 	velocityIterations := 8
@@ -85,7 +85,7 @@ func (g *Game) Update() error {
 	return nil
 }
 
-func (g *Game) Draw(screen *ebiten.Image) {
+func (g *GameController) Draw(screen *ebiten.Image) {
 	/*
 		vector.StrokeLine(screen, 100, 100, 300, 100, 1, color.RGBA{0xff, 0xff, 0xff, 0xff})
 		vector.StrokeLine(screen, 50, 150, 50, 350, 1, color.RGBA{0xff, 0xff, 0x00, 0xff})
@@ -112,11 +112,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	ebitenutil.DebugPrint(screen, fmt.Sprintf("TPS: %0.2f", ebiten.ActualTPS()))
 }
 
-func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
+func (g *GameController) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return screenWidth, screenHeight
 }
 
-func (g *Game) Run() {
+func (g *GameController) Run() {
 	ebiten.SetWindowSize(screenWidth, screenHeight)
 	ebiten.SetWindowTitle("Server Physic Window")
 	if err := ebiten.RunGame(g); err != nil {
@@ -124,7 +124,8 @@ func (g *Game) Run() {
 	}
 }
 
-func (g *Game) AddPlayerCollider(name string, x float64, y float64, r float64, player *Player) {
+func (g *GameController) AddPlayerCollider(name string, x float64, y float64, r float64) {
+
 	bd := box2d.MakeB2BodyDef()
 	bd.Position.Set(x, y)
 	bd.Type = box2d.B2BodyType.B2_dynamicBody
@@ -140,8 +141,10 @@ func (g *Game) AddPlayerCollider(name string, x float64, y float64, r float64, p
 	fd.Shape = &shape
 	fd.Density = 20.0
 	body.CreateFixtureFromDef(&fd)
-	player.Collider = *body
-	g.characters[name] = player
+
+	player := Player{Entity{Name: name, Collider: *body, Stats: EntityStat{}}}
+
+	g.characters[name] = &player
 
 	g.collisionSystem.Add(&physic.Box2dComponent{&player.Collider})
 }
