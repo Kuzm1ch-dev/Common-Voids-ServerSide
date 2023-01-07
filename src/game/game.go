@@ -29,6 +29,7 @@ type GameController struct {
 func NewGameController(world *box2d.B2World, system *physic.CollisionSystem) GameController {
 	g := GameController{}
 	g.world = world
+	system.Init()
 	g.collisionSystem = system
 	g.characters = make(map[string]*Player)
 	return g
@@ -99,7 +100,9 @@ func (g *GameController) Draw(screen *ebiten.Image) {
 
 	for _, character := range g.characters {
 		position := character.Collider.GetPosition()
-		vector.StrokeCircle(screen, float32(position.X*scale), -float32(position.Y*scale), float32(character.Collider.M_fixtureList.M_shape.GetRadius()*scale), 1, color.RGBA{0xff, 0x80, 0xff, 0xff})
+
+		vector.StrokeCircle(screen, float32(position.X)*scale, float32(position.Y)*scale, 2, 1, color.RGBA{0xff, 0x80, 0xff, 0xff})
+		vector.StrokeLine(screen, float32(position.X)*scale, float32(position.Y)*scale, 50, 350, 1, color.RGBA{0xff, 0xff, 0x00, 0xff})
 	}
 	/*
 		for _, e := range g.collisionSystem.Entities {
@@ -125,8 +128,9 @@ func (g *GameController) Run() {
 }
 
 func (g *GameController) AddPlayerCollider(name string, x float64, y float64, r float64) {
-
+	log.Println(name)
 	bd := box2d.MakeB2BodyDef()
+
 	bd.Position.Set(x, y)
 	bd.Type = box2d.B2BodyType.B2_dynamicBody
 	bd.FixedRotation = false
@@ -139,12 +143,23 @@ func (g *GameController) AddPlayerCollider(name string, x float64, y float64, r 
 
 	fd := box2d.MakeB2FixtureDef()
 	fd.Shape = &shape
-	fd.Density = 20.0
+	fd.Density = 1.0
 	body.CreateFixtureFromDef(&fd)
 
 	player := Player{Entity{Name: name, Collider: *body, Stats: EntityStat{}}}
 
 	g.characters[name] = &player
 
-	g.collisionSystem.Add(&physic.Box2dComponent{&player.Collider})
+	g.collisionSystem.Add(name, &physic.Box2dComponent{&player.Collider})
+}
+func (g *GameController) RemovePlayerCollider(name string) {
+	g.collisionSystem.Remove(name)
+	delete(g.characters, name)
+}
+
+func (g *GameController) SetPosition(name string, data physic.TransformData) {
+	character, containt := g.characters[name]
+	if containt {
+		character.Collider.ApplyForce(box2d.B2Vec2{data.Position.X, data.Position.Z}, character.Collider.GetPosition(), true)
+	}
 }

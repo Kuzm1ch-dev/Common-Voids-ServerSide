@@ -1,11 +1,15 @@
 package game
 
-import "github.com/ByteArena/box2d"
+import (
+	"github.com/ByteArena/box2d"
+	"server/src/game/buffs"
+)
 
 type Entity struct {
 	Name     string
 	Collider box2d.B2Body
 	Stats    EntityStat
+	Buffs    []buffs.Buff
 }
 
 func (e *Entity) SubHealth(value float32) {

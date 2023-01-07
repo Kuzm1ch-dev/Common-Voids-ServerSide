@@ -14,11 +14,19 @@ type CollisionEntity struct {
 }
 
 type CollisionSystem struct {
-	Entities []CollisionEntity
+	Entities map[string]CollisionEntity
 }
 
-func (c *CollisionSystem) Add(box *Box2dComponent) {
-	c.Entities = append(c.Entities, CollisionEntity{box})
+func (c *CollisionSystem) Init() {
+	c.Entities = make(map[string]CollisionEntity)
+}
+
+func (c *CollisionSystem) Add(name string, box *Box2dComponent) {
+	c.Entities[name] = CollisionEntity{box}
+}
+
+func (c *CollisionSystem) Remove(name string) {
+	delete(c.Entities, name)
 }
 
 func (c *CollisionSystem) NewListener(w *box2d.B2World) {

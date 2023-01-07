@@ -2,6 +2,7 @@ package common
 
 import (
 	"bufio"
+	"encoding/json"
 	"github.com/ByteArena/box2d"
 	"io"
 	"log"
@@ -10,14 +11,25 @@ import (
 	"server/src/controller"
 	"server/src/game"
 	"server/src/game/physic"
+	"strconv"
+	"strings"
 )
 
 const (
-	UUIDPackage    int32 = 101
-	pNewPlayer           = 102
-	pAccessAllowed       = 103
-	pBroadcast           = 104
-	pDisconnect          = 105
+	lMenu  int32 = 0
+	lWorld       = 1
+)
+
+const (
+	UUIDPackage                  int32 = 101
+	pNewPlayer                         = 102
+	pAccessAllowed                     = 103
+	pMoveBroadcast                     = 104
+	pDisconnect                        = 105
+	pEnterTheWorld                     = 106
+	pCreateCharacter                   = 107
+	pSuccessfulCreationCharacter       = 108
+	pGetCharacterList                  = 109
 )
 
 type LogicServer struct {
@@ -33,7 +45,7 @@ func (s *LogicServer) Init(addr string, maxPlayers int) {
 	s.Clients = make(map[int]*Client, maxPlayers)
 	s.DataBaseController = controller.DataBaseConnect(os.Getenv("DATABASE_STRING"))
 
-	gravity := box2d.MakeB2Vec2(0.0, -10.0)
+	gravity := box2d.MakeB2Vec2(0.0, 0.0)
 	world := box2d.MakeB2World(gravity)
 	collisionSystem := physic.CollisionSystem{}
 	collisionSystem.NewListener(&world)
@@ -57,7 +69,7 @@ func (s *LogicServer) ListenAndServe() error {
 			log.Println("accept failed, err:", err)
 			continue
 		}
-		s.Clients[s.CurrentID] = &Client{"", conn, game.Player{}}
+		s.Clients[s.CurrentID] = &Client{"", conn, 0, 0, game.Player{}}
 		go s.ConnectionHandler(s.CurrentID)
 		s.CurrentID++
 	}
@@ -104,7 +116,9 @@ func (s LogicServer) ConnectionHandler(id int) error {
 func (s LogicServer) handleReceivedPacket(pack Package, id int) error {
 	switch pack.Code {
 	case UUIDPackage:
-		if s.DataBaseController.CheckAccessToken(pack.UUID) {
+		access, uid := s.DataBaseController.CheckAccessToken(pack.UUID)
+		if access {
+			s.Clients[id].AccountID = uid
 			accessAllowed, err := Encode(Package{pAccessAllowed, "", pack.UUID})
 			if err != nil {
 				log.Println("Error:", err)
@@ -120,17 +134,43 @@ func (s LogicServer) handleReceivedPacket(pack Package, id int) error {
 				return err
 			}
 
-			err = s.NewPlayer(id)
-			if err != nil {
-				log.Println("Error:", err)
-				return err
-			}
 		} else {
 			log.Println("Токен не валиден, игрок отключается")
 			s.Clients[id].Conn.Close()
 		}
-	case pBroadcast:
-		s.BroadCastWithout(pack, id)
+
+	case pEnterTheWorld:
+		log.Println("Enter")
+		charactedID, _ := strconv.Atoi(pack.Data)
+		err := s.NewPlayer(id, charactedID)
+		s.Clients[id].Location = lWorld
+		if err != nil {
+			log.Println("Error:", err)
+			return err
+		}
+
+	case pMoveBroadcast:
+		if s.Clients[id].inWorld() {
+			s.MoveBroadCastWithout(pack, id)
+		}
+	case pCreateCharacter:
+		data := strings.Split(pack.Data, "|")
+		characterName := data[0]
+		appearanceData := data[1]
+		if s.DataBaseController.CreateCharacter(characterName, appearanceData, s.Clients[id].AccountID) {
+			s.SingleCast(Package{pSuccessfulCreationCharacter, "", ""}, id)
+		}
+	case pGetCharacterList:
+		var charactersData []string
+		charactersData = s.DataBaseController.GetCharacters(s.Clients[id].AccountID)
+		for _, character := range charactersData {
+			characterDataPackage, err := Encode(Package{pGetCharacterList, character, pack.UUID})
+			if err != nil {
+				log.Println("Error:", err)
+				return err
+			}
+			_, err = s.Clients[id].Conn.Write(characterDataPackage)
+		}
 	default:
 		break
 	}
@@ -169,6 +209,29 @@ func (s LogicServer) BroadCast(pack Package) error {
 	return nil
 }
 
+func (s LogicServer) MoveBroadCastWithout(pack Package, id int) error {
+	var transformData physic.TransformData
+	json.Unmarshal([]byte(pack.Data), &transformData)
+
+	s.GameController.SetPosition(pack.UUID, transformData)
+
+	data, err := Encode(pack)
+	if err != nil {
+		log.Println("Error:", err)
+		return err
+	}
+	for _, client := range s.Clients {
+		if client.Conn != s.Clients[id].Conn && client.Conn != nil && s.Clients[id].inWorld() {
+			_, err := client.Conn.Write(data)
+			if err != nil {
+				log.Println("Error:", err.Error())
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func (s LogicServer) BroadCastWithout(pack Package, id int) error {
 	data, err := Encode(pack)
 	if err != nil {
@@ -176,7 +239,7 @@ func (s LogicServer) BroadCastWithout(pack Package, id int) error {
 		return err
 	}
 	for _, client := range s.Clients {
-		if client.Conn != s.Clients[id].Conn && client.Conn != nil {
+		if client.Conn != s.Clients[id].Conn && client.Conn != nil && s.Clients[id].inWorld() {
 			_, err := client.Conn.Write(data)
 			if err != nil {
 				log.Println("Error:", err.Error())
@@ -194,10 +257,12 @@ func (s LogicServer) CloseConnection(id int) {
 	}
 	s.BroadCastWithout(Package{pDisconnect, "", s.Clients[id].Uuid}, id)
 	log.Println(s.Clients[id].Uuid + " Отключился.")
+	s.GameController.RemovePlayerCollider(s.Clients[id].Uuid)
+	s.DataBaseController.RemoveAccessToken(s.Clients[id].Uuid)
 	delete(s.Clients, id)
 }
 
-func (s LogicServer) NewPlayer(id int) error {
+func (s LogicServer) NewPlayer(id int, characterID int) error {
 
 	s.GameController.AddPlayerCollider(s.Clients[id].Uuid, 0, 0, 0.5)
 
